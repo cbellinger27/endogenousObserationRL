@@ -1,0 +1,148 @@
+import numpy as np
+import random
+
+
+# =========================================
+# BASE CLASS
+# =========================================
+class BaseTwoQAgent:
+
+    def __init__(self,
+                 n_actions=4,
+                 sensors=(0, 1, 2),
+                 alpha=0.1,
+                 gamma=0.99,
+                 epsilon=0.1,
+                 optimistic_measure=0.5,
+                 cost_weight=0.1):   # ✅ REGULARIZATION
+
+        self.n_actions = n_actions
+        self.sensors = list(sensors)
+
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+        self.optimistic_measure = optimistic_measure
+        self.cost_weight = cost_weight
+
+        self.Q_action = {}
+        self.Q_measure = {}
+
+    # =========================================
+    def _key(self, obs):
+        return tuple(obs.astype(int))
+
+    # =========================================
+    def _init_action(self):
+        return np.zeros(self.n_actions)
+
+    def _init_measure(self):
+
+        Q = np.zeros((self.n_actions, len(self.sensors)))
+
+        # ✅ optimistic sensing
+        for a in range(self.n_actions):
+            for i, m in enumerate(self.sensors):
+                if m != 0:  # encourage measuring
+                    Q[a, i] = self.optimistic_measure
+
+        return Q
+
+    # =========================================
+    def act(self, obs):
+
+        s = self._key(obs)
+
+        if s not in self.Q_action:
+            self.Q_action[s] = self._init_action()
+        if s not in self.Q_measure:
+            self.Q_measure[s] = self._init_measure()
+
+        # ---------- choose action ----------
+        if random.random() < self.epsilon:
+            a = random.randint(0, self.n_actions - 1)
+        else:
+            a = np.argmax(self.Q_action[s])
+
+        # ---------- choose sensor ----------
+        if random.random() < self.epsilon:
+            m_idx = random.randint(0, len(self.sensors) - 1)
+        else:
+            m_idx = np.argmax(self.Q_measure[s][a])
+
+        m = self.sensors[m_idx]
+
+        return int(a), int(m), int(m_idx)
+
+    # =========================================
+    def update(self, obs, action, m_idx, reward, cost, next_obs, done):
+
+        s = self._key(obs)
+        s2 = self._key(next_obs)
+
+        if s not in self.Q_action:
+            self.Q_action[s] = self._init_action()
+        if s not in self.Q_measure:
+            self.Q_measure[s] = self._init_measure()
+
+        if s2 not in self.Q_action:
+            self.Q_action[s2] = self._init_action()
+        if s2 not in self.Q_measure:
+            self.Q_measure[s2] = self._init_measure()
+
+        # =====================================
+        # ✅ REGULARIZED REWARD
+        # =====================================
+        r_eff = reward - self.cost_weight * cost
+
+        # =====================================
+        # NEXT ACTION
+        # =====================================
+        next_a = np.argmax(self.Q_action[s2])
+
+        # =====================================
+        # UPDATE Q_action
+        # =====================================
+        target_a = r_eff
+        if not done:
+            target_a += self.gamma * np.max(self.Q_action[s2])
+
+        self.Q_action[s][action] += self.alpha * (
+            target_a - self.Q_action[s][action]
+        )
+
+        # =====================================
+        # UPDATE Q_measure
+        # =====================================
+        target_m = r_eff
+        if not done:
+            target_m += self.gamma * np.max(self.Q_measure[s2][next_a])
+
+        self.Q_measure[s][action, m_idx] += self.alpha * (
+            target_m - self.Q_measure[s][action, m_idx]
+        )
+
+
+# =========================================
+# ✅ FINE-GRAINED AGENT
+# =========================================
+class TwoQAgentFine(BaseTwoQAgent):
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            sensors=(0, 1, 2),  # none, local, global
+            **kwargs
+        )
+
+
+# =========================================
+# ✅ COARSE-GRAINED AGENT
+# =========================================
+class TwoQAgentCoarse(BaseTwoQAgent):
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            sensors=(0, 3),  # none, both
+            **kwargs
+        )
