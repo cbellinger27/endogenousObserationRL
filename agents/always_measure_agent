@@ -1,0 +1,66 @@
+import numpy as np
+import random
+
+
+class AlwaysMeasureAgent:
+    """
+    Baseline Q-learning agent that always uses BOTH sensors.
+
+    - Learns Q(s, a)
+    - Always returns sensor_type = 3
+    """
+
+    def __init__(self,
+                 n_actions=4,
+                 alpha=0.1,
+                 gamma=0.99,
+                 epsilon=0.1):
+
+        self.n_actions = n_actions
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+        self.Q = {}
+
+    # ================= STATE KEY =================
+    def _key(self, obs):
+        return tuple(obs.astype(int))
+
+    # ================= ACTION =================
+    def act(self, obs):
+
+        key = self._key(obs)
+
+        if key not in self.Q:
+            self.Q[key] = np.zeros(self.n_actions)
+
+        # ε-greedy over actions ONLY
+        if random.random() < self.epsilon:
+            action = random.randint(0, self.n_actions - 1)
+        else:
+            action = np.argmax(self.Q[key])
+
+        # ✅ ALWAYS measure (both sensors)
+        sensor_type = 3
+
+        return int(action), sensor_type
+
+    # ================= UPDATE =================
+    def update(self, obs, action, reward, next_obs, done):
+
+        key = self._key(obs)
+        next_key = self._key(next_obs)
+
+        if key not in self.Q:
+            self.Q[key] = np.zeros(self.n_actions)
+        if next_key not in self.Q:
+            self.Q[next_key] = np.zeros(self.n_actions)
+
+        target = reward
+        if not done:
+            target += self.gamma * np.max(self.Q[next_key])
+
+        self.Q[key][action] += self.alpha * (
+            target - self.Q[key][action]
+        )
