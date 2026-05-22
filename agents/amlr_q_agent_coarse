@@ -1,0 +1,74 @@
+import numpy as np
+import random
+
+
+class AMLRQAgentCoarse:
+
+    def __init__(self,
+                 n_actions=4,
+                 alpha=0.1,
+                 gamma=0.99,
+                 epsilon=0.1,
+                 optimistic_value=1.0):
+
+        self.n_actions = n_actions
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.optimistic_value = optimistic_value
+
+        self.Q = {}
+
+        # ✅ only NONE vs BOTH
+        self.sensors = [0, 3]
+
+    def _key(self, obs):
+        return tuple(obs.astype(int))
+
+    def _init_q(self):
+
+        Q = np.zeros((len(self.sensors), self.n_actions))
+
+        for i, s in enumerate(self.sensors):
+
+            if s == 3:   # BOTH sensors ON
+                Q[i, :] = self.optimistic_value
+            else:
+                Q[i, :] = 0.0
+
+        return Q
+
+    def act(self, obs):
+
+        key = self._key(obs)
+
+        if key not in self.Q:
+            self.Q[key] = self._init_q()
+
+        if random.random() < self.epsilon:
+            s_idx = random.randint(0, len(self.sensors) - 1)
+            a = random.randint(0, self.n_actions - 1)
+            return a, self.sensors[s_idx], s_idx
+
+        q = self.Q[key]
+        s_idx, a = np.unravel_index(np.argmax(q), q.shape)
+
+        return int(a), self.sensors[s_idx], int(s_idx)
+
+    def update(self, obs, s_idx, action, reward, next_obs, done):
+
+        key = self._key(obs)
+        next_key = self._key(next_obs)
+
+        if key not in self.Q:
+            self.Q[key] = self._init_q()
+        if next_key not in self.Q:
+            self.Q[next_key] = self._init_q()
+
+        target = reward
+        if not done:
+            target += self.gamma * np.max(self.Q[next_key])
+
+        self.Q[key][s_idx, action] += self.alpha * (
+            target - self.Q[key][s_idx, action]
+        )
