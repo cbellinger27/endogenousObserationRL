@@ -86,7 +86,7 @@ Moving from atomic to structured observations changes not only efficiency, but t
 ```bash
 conda env create -f environment.yml
 conda activate endogenous-rl
-
+```
 
 ---
 
@@ -98,3 +98,4 @@ Example:
 
 ```bash
 python train.py --agent cascade_q --mode fine
+```
