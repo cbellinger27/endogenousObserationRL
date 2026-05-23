@@ -81,6 +81,15 @@ Moving from atomic to structured observations changes not only efficiency, but t
 
 ---
 
+## Setup
+
+```bash
+conda env create -f environment.yml
+conda activate endogenous-rl
+
+
+---
+
 ## Running the Code
 
 (Instructions here should be filled in depending on your implementation)
